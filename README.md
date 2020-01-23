@@ -59,13 +59,13 @@ And install the required packages from R with:
 As NICOB.app is not yet released on CRAN you will need to install it
 from source you can do so with the following commands:
 
-Get the last version of the package
+Get the last version of the package using ```wget```, or you can use your browser to download it.
 
-    wget https://forest.fr.to/NICOB.app_0.2.tar.gz
+    wget https://github.com/tlafarge/NICOB_app_public/releases/download/1.2/NICOB.app_1.2.tar.gz
 
 You can then install it with:
 
-    R CMD INSTALL NICOB.app_0.2.tar.gz
+    R CMD INSTALL NICOB.app_1.2.tar.gz
 
 You can now run the app with the following commands, first run R:
 
@@ -79,13 +79,14 @@ NICOB on a the specified port.
     require("NICOB.app")
     run_NICOB_app()
 
-It should give you the address of the app, something like:
+It should give you the address of the app, if you did not specify a port:
 
     Listening on http://127.0.0.1:3999
 
 If it does not open your browser automatically you can navigate to this
 page manually to find the app. You can also use a link like this to load
-an example. (replace the port number here 3172 by the one you got on the
-last step)
+an example.
 
     http://127.0.0.1:3999?example=carotid
+    http://127.0.0.1:3999?example=pcb
+    http://127.0.0.1:3999?example=triple
