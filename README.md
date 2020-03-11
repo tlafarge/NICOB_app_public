@@ -17,18 +17,10 @@
 ### version 1.2
  - Added the possibility to remove labs from the consensus computation but not the degrees of equivalences by adding a "-" in front of their label
 
-### version 1.4 - 2018-10-23
-  - New single window interface
-  - Improved usr workflow
-  - Added the codemirror library to add features like syntax highlighting and bracket matching  
-  - Added support for the new asymmetric distribution using skew normal distribution, or a generalized extreme value distribution.
-  - Refactoring of the R code
-  - Updated Manual
-
 ### version 1.1
   - Improve the configuration files save and load feature
   - Added the possibility to specify the wamted number of significant digits
   - Nows display the dark Uncertainty
-  
+
 ### version 1.0
   - First public release of NICOB
