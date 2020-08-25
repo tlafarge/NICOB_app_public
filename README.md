@@ -6,7 +6,7 @@
 
 
 ## Manual
-[PDF available here](https://consensus.nist.gov/NISTConsensusBuilder-UserManual.pdf)
+[PDF available here](https://consensus.nist.gov/app_direct/nicob/NISTConsensusBuilder-UserManual.pdf)
 
 ## Requirements
 * R version 3.6+
