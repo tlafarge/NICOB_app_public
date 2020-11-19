@@ -33,7 +33,10 @@ sampleFromTau2Dist=function(y,sigma){
   c=S1-S2/S1
   muhat=sum(w*y)/sum(w)
   Q=sum(w*(y-muhat)^2)
-  tau2_hat_M=(Q-(K-1))/(S1-S2/S1)
+  if ((S1-S2/S1)!=0)
+    tau2_hat_M=(Q-(K-1))/(S1-S2/S1)
+  else
+    tau2_hat_M=0
   tau2_hat_DL=max(0,tau2_hat_M)
   
   ######################################################################
@@ -93,7 +96,10 @@ sampleFromTau2Dist=function(y,sigma){
   lambda=lambda_tau2(tau2_hat_M,w)
 
   transformed_tau2_M=rgamma(n=1,shape=r,scale=1/lambda)
-  r_tau2_DL=max(0,(transformed_tau2_M-(K-1))/c)
+  if (c!=0)
+    r_tau2_DL=max(0,(transformed_tau2_M-(K-1))/c)
+  else
+    r_tau2_DL=0
   return(r_tau2_DL)
   
 }

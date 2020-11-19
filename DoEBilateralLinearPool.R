@@ -31,53 +31,183 @@
 
 ######################################################################
 
-DoEBilateralPool = function (x, u, nu, lab, weights, K,coverageProb) ##AK change##
+DoEBilateralPool = function (x.All, u.All, nu.All, lab.All, weights, K,coverageProb) 
 {
-  source("linearOP.R") ##AK change##
+  source("linearOP.R")
   
-  n = length(x)
-  if (is.null(lab)) {lab=paste("L", 1:n, sep="")}
+  n.All = length(x.All)
+  if (is.null(lab.All)) {lab.All=paste("L", 1:n.All, sep="")}
   
-  # z28.POOL = linearPool(x=x, u=u, lab=lab, nu=nu) ##AK change## this isn't used later
-  DoE.Bilateral.POOL.x = DoE.Bilateral.POOL.U = diag(rep(0,n))
-  DoE.Bilateral.POOL.Lwr = DoE.Bilateral.POOL.Upr = diag(rep(0,n))
+  # Check if any lab was exempt from prior computation
+  sanitize = !startsWith( lab.All,"-")
+  
+  ## Analysis for included labs 
+  x=x.All[sanitize]
+  u=u.All[sanitize]
+  nu=nu.All[sanitize]
+  lab=lab.All[sanitize]
+  
+  #Number of labs taken into account for the consensus
+  nI = sum(sanitize)
+  if (nI != n.All && nI<= 2){
+    testWarn="WARNING: Not enough labs were including in the consensus for DoE with LOO to be meaningful<br/>"
+  }
+  
+  
+  ### For included labs
+  DoE.Bilateral.POOL.x = DoE.Bilateral.POOL.U = diag(rep(0,nI))
+  DoE.Bilateral.POOL.Lwr = DoE.Bilateral.POOL.Upr = diag(rep(0,nI))
   dimnames(DoE.Bilateral.POOL.x) = list(lab, lab)
   dimnames(DoE.Bilateral.POOL.U) = list(lab, lab)
   dimnames(DoE.Bilateral.POOL.Lwr) = list(lab, lab)
   dimnames(DoE.Bilateral.POOL.Upr) = list(lab, lab)
-  for (j1 in 1:(n-1))
+  for (j1 in 1:(nI-1))
   {
-    cat(j1, "of", n-1, "\n")
-    zj1 = linearOP(x=x[-j1], u=u[-j1], nu=nu[-j1],weights=weights[-j1],K) ##AK change##
+    zj1 = linearOP(x=x[-j1], u=u[-j1], nu=nu[-j1],weights=weights[-j1],K) 
     ej1 = sample(zj1-mean(zj1), size=K, replace=TRUE)
     Dj1 = x[j1] + ej1 - zj1
-    for (j2 in (j1+1):n)
+    for (j2 in (j1+1):nI)
     {
-      zj2 = linearOP(x=x[-j2], u=u[-j2], nu=nu[-j2],weights=weights[-j2],K) ##AK change##
+      zj2 = linearOP(x=x[-j2], u=u[-j2], nu=nu[-j2],weights=weights[-j2],K) 
       ej2 = sample(zj2-mean(zj2), size=K, replace=TRUE)
       Dj2 = x[j2] + ej2 - zj2
       DoE.Bilateral.POOL.x[j1,j2] = x[j1]-x[j2]
       DoE.Bilateral.POOL.x[j2,j1] = DoE.Bilateral.POOL.x[j1,j2] 
-      # DoE.Bilateral.POOL.x[j2,j1] = x[j2]-x[j1]
       DoE.Bilateral.POOL.U[j1,j2] =
         symmetricalBootstrapCI(Dj1-Dj2, x[j1]-x[j2], coverageProb)
       DoE.Bilateral.POOL.U[j2,j1] =
-        symmetricalBootstrapCI(Dj2-Dj1, x[j2]-x[j1], coverageProb)
+        symmetricalBootstrapCI(Dj2-Dj1, x[j2]-x[j1], coverageProb) 
       DoE.Bilateral.POOL.Lwr[j1,j2] =
-        quantile(Dj1-Dj2, probs=(1-coverageProb)/2)#0.025)
+        quantile(Dj1-Dj2, probs=(1-coverageProb)/2)
       DoE.Bilateral.POOL.Lwr[j2,j1] =
-        quantile(Dj2-Dj1, probs=(1-coverageProb)/2)#0.025)
+        quantile(Dj2-Dj1, probs=(1-coverageProb)/2)
       DoE.Bilateral.POOL.Upr[j1,j2] =
-        quantile(Dj1-Dj2, probs=(1+coverageProb)/2)#0.975)
+        quantile(Dj1-Dj2, probs=(1+coverageProb)/2)
       DoE.Bilateral.POOL.Upr[j2,j1] =
-        quantile(Dj2-Dj1, probs=(1+coverageProb)/2)#0.975)
+        quantile(Dj2-Dj1, probs=(1+coverageProb)/2)
     }
   }
   
-  return(list(B.x=DoE.Bilateral.POOL.x,
-              B.U=DoE.Bilateral.POOL.U,
-              B.Lwr=DoE.Bilateral.POOL.Lwr,
-              B.Upr=DoE.Bilateral.POOL.Upr))
+  ### For excluded labs ### AP CHECK: I had to come up with most of this on my own, and it is complicated. 
+  
+  if(n.All>nI){
+    x.excluded=x.All[!sanitize]
+    u.excluded=u.All[!sanitize]
+    nu.excluded=nu.All[!sanitize]
+    lab.excluded=lab.All[!sanitize]
+    
+    names(x.All)=lab.All
+    
+    names(x.excluded)=names(u.excluded)=names(nu.excluded)=lab.excluded
+
+    lab.outlabel=c(lab,lab.excluded)
+    
+    All.DoE.Bilateral.POOL.x = All.DoE.Bilateral.POOL.U = 
+      All.DoE.Bilateral.POOL.Lwr = All.DoE.Bilateral.POOL.Upr = array(NA,dim=c(n.All,n.All)) 
+    dimnames(All.DoE.Bilateral.POOL.x) = dimnames(All.DoE.Bilateral.POOL.U) = 
+      dimnames(All.DoE.Bilateral.POOL.Lwr) = dimnames(All.DoE.Bilateral.POOL.Upr) = list(lab.outlabel, lab.outlabel)
+
+    All.DoE.Bilateral.POOL.x[1:nI,1:nI]=DoE.Bilateral.POOL.x
+    All.DoE.Bilateral.POOL.U[1:nI,1:nI]=DoE.Bilateral.POOL.U
+    All.DoE.Bilateral.POOL.Lwr[1:nI,1:nI]=DoE.Bilateral.POOL.Lwr
+    All.DoE.Bilateral.POOL.Upr[1:nI,1:nI]=DoE.Bilateral.POOL.Upr
+
+    for (labname in lab.excluded){ ### This is lab 1 for DoE calculation, goes through only excluded labs
+      
+      z.exlab1 = linearOP(x=x, u=u, nu=nu,weights=weights,K)
+      e.exlab1 = sample(z.exlab1-mean(z.exlab1), size=K, replace=TRUE)
+      D.exlab1 = x.excluded[labname] + e.exlab1 - z.exlab1
+
+      
+      for(zz in 1:n.All){ ### This is index for lab 2 for DoE calculation, goes through all labs
+        
+        
+        if(names(All.DoE.Bilateral.POOL.x[labname,])[zz]==labname){ # If lab 1 and lab 2 are the same, set all to zero
+          All.DoE.Bilateral.POOL.x[labname,zz] =
+            All.DoE.Bilateral.POOL.U[labname,zz] = 
+            All.DoE.Bilateral.POOL.Lwr[labname,zz] = 
+            All.DoE.Bilateral.POOL.Upr[labname,zz] = 0    
+        }else if(names(All.DoE.Bilateral.POOL.x[labname,])[zz] %in% lab.excluded){ # Lab 2 also excluded lab
+          secondLabName=names(All.DoE.Bilateral.POOL.x[labname,])[zz]
+          
+          z.exlab2 = linearOP(x=x, u=u, nu=nu,weights=weights,K)
+          e.exlab2 = sample(z.exlab2-mean(z.exlab2), size=K, replace=TRUE)
+          D.exlab2 = x.All[secondLabName] + e.exlab2 - z.exlab2
+          
+          All.DoE.Bilateral.POOL.x[labname,secondLabName] = x.All[secondLabName]-x.excluded[labname] # had to switch these to match above code, indices are different here
+          All.DoE.Bilateral.POOL.x[secondLabName,labname] = All.DoE.Bilateral.POOL.x[labname,secondLabName]
+          
+          All.DoE.Bilateral.POOL.U[labname,secondLabName] = 
+            symmetricalBootstrapCI(D.exlab2-D.exlab1,
+                                   x.All[secondLabName]-x.excluded[labname], 
+                                   coverageProb)
+          All.DoE.Bilateral.POOL.U[secondLabName,labname] = 
+            symmetricalBootstrapCI(D.exlab1-D.exlab2,
+                                   x.excluded[labname]-x.All[secondLabName],
+                                   coverageProb)
+          
+          All.DoE.Bilateral.POOL.Lwr[labname,secondLabName] = 
+            quantile(D.exlab2-D.exlab1,probs=(1-coverageProb)/2)
+          All.DoE.Bilateral.POOL.Lwr[secondLabName,labname] = 
+            quantile(D.exlab1-D.exlab2, probs=(1-coverageProb)/2)
+          
+          All.DoE.Bilateral.POOL.Upr[labname,secondLabName] = 
+            quantile(D.exlab2-D.exlab1,probs=(1+coverageProb)/2)
+          All.DoE.Bilateral.POOL.Upr[secondLabName,labname] = 
+            quantile(D.exlab1-D.exlab2, probs=(1+coverageProb)/2)
+        
+        }else{ # Lab 2 is an included lab
+          secondLabName=names(All.DoE.Bilateral.POOL.x[labname,])[zz]
+          secondLabNameIndex=which(lab==secondLabName)
+          
+          z.exlab2 = linearOP(x=x[-secondLabNameIndex], u=u[-secondLabNameIndex], nu=nu[-secondLabNameIndex],weights=weights[-secondLabNameIndex],K)
+          e.exlab2 = sample(z.exlab2-mean(z.exlab2), size=K, replace=TRUE)
+          D.exlab2 = x.All[secondLabName] + e.exlab2 - z.exlab2
+          
+          All.DoE.Bilateral.POOL.x[labname,secondLabName] = x.All[secondLabName]-x.excluded[labname] # had to switch these to match above code, indices are different here
+          All.DoE.Bilateral.POOL.x[secondLabName,labname] = All.DoE.Bilateral.POOL.x[labname,secondLabName]
+          
+          All.DoE.Bilateral.POOL.U[labname,secondLabName] = 
+            symmetricalBootstrapCI(D.exlab2-D.exlab1,
+                                   x.All[secondLabName]-x.excluded[labname], 
+                                   coverageProb)
+          All.DoE.Bilateral.POOL.U[secondLabName,labname] = 
+            symmetricalBootstrapCI(D.exlab1-D.exlab2,
+                                   x.excluded[labname]-x.All[secondLabName],
+                                   coverageProb)
+          
+          All.DoE.Bilateral.POOL.Lwr[labname,secondLabName] = 
+            quantile(D.exlab2-D.exlab1,probs=(1-coverageProb)/2)
+          All.DoE.Bilateral.POOL.Lwr[secondLabName,labname] = 
+            quantile(D.exlab1-D.exlab2, probs=(1-coverageProb)/2)
+          
+          All.DoE.Bilateral.POOL.Upr[labname,secondLabName] = 
+            quantile(D.exlab2-D.exlab1,probs=(1+coverageProb)/2)
+          All.DoE.Bilateral.POOL.Upr[secondLabName,labname] = 
+            quantile(D.exlab1-D.exlab2, probs=(1+coverageProb)/2)
+        }
+        
+        
+      }
+      
+      
+
+      
+    }
+    
+  }else{ ### no excluded labs
+    All.DoE.Bilateral.POOL.x=DoE.Bilateral.POOL.x
+    All.DoE.Bilateral.POOL.U=DoE.Bilateral.POOL.U
+    All.DoE.Bilateral.POOL.Lwr=DoE.Bilateral.POOL.Lwr
+    All.DoE.Bilateral.POOL.Upr=DoE.Bilateral.POOL.Upr
+  }
+  
+  ### ### ### ### 
+    
+  return(list(B.x=All.DoE.Bilateral.POOL.x,
+              B.U=All.DoE.Bilateral.POOL.U,
+              B.Lwr=All.DoE.Bilateral.POOL.Lwr,
+              B.Upr=All.DoE.Bilateral.POOL.Upr))
 }
 
 ## ######################################################################

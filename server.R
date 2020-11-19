@@ -1,3 +1,4 @@
+
 # server.R
 library(metafor)
 library(R2jags)
@@ -8,12 +9,12 @@ shinyServer(function(input, output, session) {
 
   source("significator.R")
 
-  output$dyn_input1<-renderUI({
+  output$dyn_input1<-renderUI({   
     x=as.numeric(unlist(strsplit(gsub("\\s", "", input$mean),",")))
     lab=trimws( strsplit(input$lablabels,",")[[1]])
     if(length(lab)!=0){
       sanitize = !startsWith( lab,"-")
-      tempvalue = max(mad(x), mad(x[sanitize]))
+      tempvalue =  mad(x[sanitize])
     }else
     {
       tempvalue=mad(x)
@@ -26,10 +27,21 @@ shinyServer(function(input, output, session) {
   })
 
   output$dyn_input2<-renderUI({
+    x=as.numeric(unlist(strsplit(gsub("\\s", "", input$mean),",")))
+    se=as.numeric(unlist(strsplit(gsub("\\s", "", input$se),",")))
+    lab=trimws( strsplit(input$lablabels,",")[[1]])
+    if(length(lab)!=0){
+      sanitize = !startsWith( lab,"-")
+      tempvalue = median(se[sanitize])
+    }else
+    {
+      tempvalue=median(x)
+    }
     numericInput("halfCauchyScaleSigma",
                  label = h4("Scale for half-Cauchy prior on within laboratory variances"),
                  # value =  median(labsesbayes()))
-                 value =  median(as.numeric(unlist(strsplit(gsub("\\s", "", input$se),",")))))
+                 #value =  median(as.numeric(unlist(strsplit(gsub("\\s", "", input$se),",")))))
+                value=tempvalue)
 
   })
 
@@ -196,7 +208,7 @@ shinyServer(function(input, output, session) {
       inputList = inputList[names(inputList) != "go"]
       inputList = inputList[names(inputList) != "dopool"]
 
-      outString = "NICOB version=1.2"
+      outString = "NICOB version=1.3"
       for (ii in c("lablabels","mean","se","df","units","coverage","DoE"))
       {
         if( !is.null(inputList[[ii]]))
@@ -351,6 +363,15 @@ shinyServer(function(input, output, session) {
   	}
   	#we remove the values of labs starting with "-"
     sanitize = !startsWith( lab,"-")
+    nI=length(labmeans()[sanitize])
+    ###Check number of included labs 
+    LOObool= as.logical(input$LOODoE)
+  
+    validate(
+      need((nI>=3&&LOObool)||!LOObool, 'At least three labs are required to be included in the consensus for this method.')
+    )
+  
+    
 
     if(input$knhacheck){
       modifiedKHmethod(x = labmeans()[sanitize],u = labses()[sanitize], coverageProb = input$coverage)
@@ -632,18 +653,28 @@ shinyServer(function(input, output, session) {
       need(is.numeric(input$coverage) && input$coverage<=1 && input$coverage>=0, 'Invalid coverage probability, must be numeric between 0 and 1.'),
       need(length(labmeans())==length(labses()), 'The number of measured values entered does not equal the number of standard uncertainties entered.'),
       need(length(labmeans())==length(labdfs()) || length(labdfs())==0, "The number of degrees of freedom entered does not equal the number of measured values entered."),
-      # need(length(labmeans())==length(strsplit(input$lablabels,",")[[1]]) | length(strsplit(input$lablabels,",")[[1]])==0, 'The number of study labels entered does not equal the number of measured values entered.'),
       need(length(labmeans())==length(lablabs()) | length(lablabs())==0,'The number of study labels entered does not equal the number of measured values entered.'),
       need(!any(table(lablabs())>1) | length(lablabs())==0,"Laboratory labels should be unique."),
       need(length(labmeans())>1, 'At least two measured values are required.'),
-      # need(!any(is.na(labmeans())), ''),
-      # need(!any(is.na(labses())), ''),
-      # need(is.numeric(input$coverage) && input$coverage<=1 && input$coverage>=0, '')
       need(length(labmeans())<=500, 'The NICOB will not combine more than 500 measured values.')
     )
 
     validate(
       need(is.numeric(input$DoEbootrep) && input$DoEbootrep>0 && input$DoEbootrep<=50000, 'Invalid number of bootstrap replicates for degrees of equivalence calculation, must be positive integer (less than 50000).')
+    )
+    if(length(lablabs())==0){
+      lab=paste("L", 1:length(labmeans()), sep="")
+    }else{
+      lab=lablabs()
+    }
+    #we remove the values of labs starting with "-"
+    sanitize = !startsWith( lab,"-")
+    nI=length(labmeans()[sanitize])
+    ###Check number of included labs 
+    LOObool= as.logical(input$LOODoE)
+    
+    validate(
+      need((nI>=3&&LOObool)||!LOObool, 'At least three labs are required to be included in the consensus for this method.')
     )
 
 
@@ -652,7 +683,7 @@ shinyServer(function(input, output, session) {
 
 
       if(length(lablabs())==0){
-        lab=NULL
+        lab=paste("L", 1:length(labmeans()), sep="")
       }else{
         lab=lablabs()
       }
@@ -665,7 +696,7 @@ shinyServer(function(input, output, session) {
       }
 
       DoEUnilateralDL(x=labmeans(), u=labses(), nu=nu,
-                      lab=lab, K=input$DoEbootrep,LOO=input$LOODoE,coverageProb=.95, DLRes=outrma()) # hard-coded coverageProb to match MRA definition and user's manual
+                      lab=lab, K=input$DoEbootrep,LOO=as.logical(input$LOODoE),coverageProb=.95, DLRes=outrma()) # hard-coded coverageProb to match MRA definition and user's manual
 
     })
 
@@ -694,20 +725,28 @@ shinyServer(function(input, output, session) {
 
     par(fig=c(0,1,0,.8), new=TRUE)
 
-    plot(DLDoEUni()$DoE$DoE.x,pch=19,ylim=range(DLDoEUni()$DoE$DoE.Lwr,DLDoEUni()$DoE$DoE.Upr),ylab="DoE",xlab="",xaxt="n", bty="n",axes=FALSE)
-
+    plot(0,xlim=range(0.7,length(DLDoEUni()$DoE$DoE.x)+0.3),ylim=range(DLDoEUni()$DoE$DoE.Lwr,DLDoEUni()$DoE$DoE.Upr),type="n",     ylab="DoE",xlab="",xaxt="n", bty="n",axes=FALSE)
+    abline(h=0,col="gray")
+    
     if(length(lablabs())==0){
-      lab=DLDoEUni()$DoE$Lab
+      lab=paste("L", 1:length(labmeans()), sep="")
     }else{
       lab=lablabs()
     }
+    #we remove the values of labs starting with "-"
+    sanitize = !startsWith( lab,"-")
+    nI=length(labmeans()[sanitize])
+    n=length(labmeans())
+    points(x=1:length(DLDoEUni()$DoE$DoE.x),y=DLDoEUni()$DoE$DoE.x,pch=c(rep(19,nI),rep(21,n-nI)))
+    
+    lab=DLDoEUni()$DoE$Lab # use lab labels that were rearranged in DoE code, not original labels
+
     n = length(labmeans())
   	mtext(lab[seq(1, n, 2)], side=1, at=seq(1, n, 2), line=0, cex=1, col="Black")
     mtext(lab[seq(2, n, 2)], side=1, at=seq(2, n, 2), line=1.2, cex=1, col="Black")
 
 
     axis(2)
-    abline(h=0,col="gray")
 
     for(i in 1:length(DLDoEUni()$DoE$DoE.x)){
       arrows(i,DLDoEUni()$DoE$DoE.Lwr[i],i,DLDoEUni()$DoE$DoE.Upr[i],length=0)
@@ -739,15 +778,24 @@ shinyServer(function(input, output, session) {
       # need(is.numeric(input$coverage) && input$coverage<=1 && input$coverage>=0, '')
       need(length(labmeans())<=500, 'The NICOB will not combine more than 500 measured values.')
     )
+    if(length(lablabs())==0){
+      lab=paste("L", 1:length(labmeans()), sep="")
+    }else{
+      lab=lablabs()
+    }
+    #we remove the values of labs starting with "-"
+    sanitize = !startsWith( lab,"-")
+    nI=length(labmeans()[sanitize])
+    ###Check number of included labs 
+    LOObool= as.logical(input$LOODoE)
+    
+    validate(
+      need((nI>=3&&LOObool)||!LOObool, 'At least three labs are required to be included in the consensus for this method.')
+    )
 
     withProgress(message = 'Calculating Bilateral DoEs', value = 0, {
 
-
-      if(length(lablabs())==0){
-        lab=NULL
-      }else{
-        lab=lablabs()
-      }
+      # removed lab input, don't use it in the function.
 
       if(length(labdfs())!=0){
         nu=labdfs()
@@ -756,7 +804,7 @@ shinyServer(function(input, output, session) {
       }
 
       DoEBilateralDL(x=labmeans(), u=labses(), nu=nu,
-                     lab=lab, K=input$DoEbootrep,coverageProb=.95,
+                     K=input$DoEbootrep,coverageProb=.95,
                      DoEUnilateral=DLDoEUni())
     })
 
@@ -797,7 +845,7 @@ shinyServer(function(input, output, session) {
     xx[xx == 0] = 0.1
     diag(xx) = rep(0.5, n)
     image(1:n, 1:n, xx, xlim=c(-1.5, n+1),breaks=c(-0.5, 0.4, 0.85, 1.5),
-          col=c("lightblue","lightblue4","yellow"), #I also like "white" for the diagonal, rather than "lightblue4", to convey that this should be ignored
+          col=c("lightblue","lightblue4","yellow"),
           axes=FALSE, xlab="", ylab="", asp=1)
     K = nrow(ij)
     if (K > 0) {
@@ -886,34 +934,43 @@ shinyServer(function(input, output, session) {
       need(input$nburnin>=0 && input$nburnin<=500000,'Length of burn in must be a positive integer (less than 500000).'),
       need(input$nthin>0 && input$nthin<=1000,'Thinning rate must be a positive integer (less than 1000).'),
       need(input$nburnin<=input$niters/2,paste("Length of burn in too large (over half of the total number of iterations). Increase number of iterations to at least ",input$nburnin*2,".",sep="")),
-      need(length(labmeansbayes())>1, 'At least two measured values are required.'),
       need(length(labmeansbayes())<=500, 'The NICOB will not combine more than 500 measured values.'),
-      need(!is.na(seedbayes()), 'Random number generator seed must be numeric.')
+      need(!is.na(seedbayes()), 'Random number generator seed must be numeric.'),
+      ###Number of labs
+      need(length(labmeansbayes())>1, 'At least two measured values are required.')
+      
 
     )
 
     #################################
     set.seed(seedbayes())
 
-
     if(length(lablabsbayes())==0){
       lab=paste("L", 1:length(labmeansbayes()), sep="")
     }else{
       lab=lablabsbayes()
     }
-
+    
     sanitize = !startsWith( lab,"-")
-
+    
     #we reorganize the lab to remove those who starts with -
-
+    
     lab = lab[sanitize]
     x = labmeansbayes()[sanitize]
     u = labsesbayes()[sanitize]
+    
+    nI = length(x)
+    
+    ###Check number of included labs 
 
-    n = length(x)
-
-
-
+    LOObool= as.logical(input$LOODoE)
+    
+    validate(
+      need((nI>=3&&LOObool)||!LOObool, 'At least three labs are required to be included in the consensus for this method.'),
+      need((nI>=2&&!LOObool)||LOObool, 'At least two labs are required to be included in the consensus for this method.')
+    )
+    
+    
     if(length(labdfsbayes())!=0){
       nu=labdfsbayes()[sanitize]
     }else{
@@ -1167,9 +1224,13 @@ shinyServer(function(input, output, session) {
     nlab = length(labmeansbayes())
     #Number of labs taken into account for the consensus
     nI = length(labmeansbayes()[sanitize])
-    validate(
-      need((nI == nlab | nI >= 3 | as.logical(input$LOODoE) ), 'Not enough labs were including in the consensus for DoE to be available with this method'))
 
+    LOObool= as.logical(input$LOODoE)
+    
+    validate(
+      need((nI>=3&&LOObool)||!LOObool, 'At least three labs are required to be included in the consensus for this method.'),
+      need((nI>=2&&!LOObool)||LOObool, 'At least two labs are required to be included in the consensus for this method.')
+    )
 
       withProgress(message = 'Calculating Unilateral DoEs', value = 0, style="old",{
 
@@ -1194,7 +1255,7 @@ shinyServer(function(input, output, session) {
         input_pscalesig=input$halfCauchyScaleSigma
       }
 
-      DoEUnilateralBayes(x, u, nu, lab, LOO=input$LOODoE,mcmc=outbayes()[["mcmcout"]],
+      DoEUnilateralBayes(x, u, nu, lab, LOO=as.logical(input$LOODoE),mcmc=outbayes()[["mcmcout"]],
                          ni = input$niters,nb = input$nburnin,nt = input$nthin,coverageProb = .95,#input$coverage) # hard-coded to match MRA definition and user's manual
                          UItauPriorScale=input_pscaletau, UIsigmaPriorScale=input_pscalesig)
 
@@ -1226,17 +1287,23 @@ shinyServer(function(input, output, session) {
 
 
     par(fig=c(0,1,0,.8), new=TRUE)
-
-    plot(BayesDoEUni()$DoE$DoE.x,pch=19,ylim=range(BayesDoEUni()$DoE$DoE.Lwr,BayesDoEUni()$DoE$DoE.Upr),
-         ylab="DoE",xlab="",xaxt="n", bty="n",axes=FALSE)
-
-
+    
+    plot(0,xlim=range(0.7,length(BayesDoEUni()$DoE$DoE.x)+0.3),ylim=range(BayesDoEUni()$DoE$DoE.Lwr,BayesDoEUni()$DoE$DoE.Upr),type="n",     ylab="DoE",xlab="",xaxt="n", bty="n",axes=FALSE)
+    abline(h=0,col="gray")
+    
     if(length(lablabsbayes())==0){
-      # lab=paste("L", 1:length(BayesDoEUni()$DoE$DoE.x), sep="")
-      lab=BayesDoEUni()$DoE$Lab
+      lab=paste("L", 1:length(labmeansbayes()), sep="")
     }else{
       lab=lablabsbayes()
     }
+    #we remove the values of labs starting with "-"
+    sanitize = !startsWith( lab,"-")
+    nI=length(labmeansbayes()[sanitize])
+    n=length(labmeansbayes())
+    points(x=1:length(BayesDoEUni()$DoE$DoE.x),y=BayesDoEUni()$DoE$DoE.x,pch=c(rep(19,nI),rep(21,n-nI)))
+    
+
+    lab=BayesDoEUni()$DoE$Lab # order of the lab with excluded at the end
 
 
     n = length(labmeansbayes())
@@ -1245,7 +1312,6 @@ shinyServer(function(input, output, session) {
 
 
     axis(2)
-    abline(h=0,col="gray")
 
     for(i in 1:length(BayesDoEUni()$DoE$DoE.x)){
       arrows(i,BayesDoEUni()$DoE$DoE.Lwr[i],i,BayesDoEUni()$DoE$DoE.Upr[i],length=0)
@@ -1263,6 +1329,29 @@ shinyServer(function(input, output, session) {
 
 
   BayesDoEBi=eventReactive(input$dobayes,{
+    if(length(lablabsbayes())==0){
+      lab=paste("L", 1:length(labmeansbayes()), sep="")
+    }else{
+      lab=lablabsbayes()
+    }
+    
+    sanitize = !startsWith( lab,"-")
+    
+    #we reorganize the lab to remove those who starts with -
+    
+    lab = lab[sanitize]
+    x = labmeansbayes()[sanitize]
+
+    nI = length(x)
+    
+    ###Check number of included labs 
+    
+    LOObool= as.logical(input$LOODoE)
+    
+    validate(
+      need((nI>=3&&LOObool)||!LOObool, 'At least three labs are required to be included in the consensus for this method.'),
+      need((nI>=2&&!LOObool)||LOObool, 'At least two labs are required to be included in the consensus for this method.')
+    )
 
     withProgress(message = 'Calculating Bilateral DoEs', value = 0, style="old",{
 
@@ -1275,12 +1364,12 @@ shinyServer(function(input, output, session) {
       }
 
       if(length(lablabsbayes())==0){
-        lab=NULL
+        lab=paste("L", 1:length(labmeansbayes()), sep="")
       }else{
         lab=lablabsbayes()
       }
 
-      DoEBilateralBayes(x, u, nu,lab,DoEUnilateral=BayesDoEUni(),coverageProb=.95)#input$coverage)
+      DoEBilateralBayes(x, u, nu,DoEUnilateral=BayesDoEUni(),coverageProb=.95)
 
     })
 
@@ -1430,13 +1519,6 @@ shinyServer(function(input, output, session) {
     set.seed(seedpool() )
 
 
-
-    if(length(numericPoolWeights())==0){
-      LPweights=rep(1,length(labmeanspool()))
-    }else{
-      LPweights=numericPoolWeights()
-    }
-
     if(length(lablabspool())==0){
       lab=paste("L", 1:length(labmeanspool()), sep="")
     }else{
@@ -1445,7 +1527,28 @@ shinyServer(function(input, output, session) {
     #we remove the values of labs starting with "-"
     sanitize = !startsWith( lab,"-")
 
-    linearOP(labmeanspool()[sanitize],labsespool()[sanitize],labdfspool()[sanitize],LPweights[sanitize],m=input$linearOPrep)
+
+    #we reorganize the lab to remove those who starts with -
+    
+    lab = lab[sanitize]
+    x = labmeanspool()[sanitize]
+    nI = length(x)
+    
+    ###Check number of included labs 
+    
+    LOObool= as.logical(input$LOODoE)
+    
+    validate(
+      need((nI>=3&&LOObool)||!LOObool, 'At least three labs are required to be included in the consensus for this method.'),
+      need((nI>=2&&!LOObool)||LOObool, 'At least two labs are required to be included in the consensus for this method.')
+    )
+    if(length(numericPoolWeights())==0){
+      LPweights=rep(1,length(labmeanspool()[sanitize]))
+    }else{
+      LPweights=numericPoolWeights()
+    }
+
+    linearOP(labmeanspool()[sanitize],labsespool()[sanitize],labdfspool()[sanitize],LPweights,m=input$linearOPrep)
 
   })
 
@@ -1653,7 +1756,26 @@ shinyServer(function(input, output, session) {
       need(length(labmeanspool())<=500, 'The NICOB will not combine more than 500 measured values.')
 
     )
-
+    
+    if(length(lablabspool())==0){
+      lab=paste("L", 1:length(labmeanspool()), sep="")
+    }else{
+      lab=lablabspool()
+    }
+    
+    #we remove the values of labs starting with "-"
+    sanitize = !startsWith( lab,"-")
+    nI = length(labmeanspool()[sanitize])
+    
+    ###Check number of included labs 
+    
+    LOObool= as.logical(input$LOODoE)
+    
+    validate(
+      need((nI>=3&&LOObool)||!LOObool, 'At least three labs are required to be included in the consensus for this method.'),
+      need((nI>=2&&!LOObool)||LOObool, 'At least two labs are required to be included in the consensus for this method.')
+    )
+    
     withProgress(message = 'Calculating Unilateral DoEs', value = 0, style="old",{
 
       x=labmeanspool()
@@ -1665,21 +1787,12 @@ shinyServer(function(input, output, session) {
         nu=NULL
       }
 
-
-      if(length(lablabspool())==0){
-        lab=NULL
-      }else{
-        lab=lablabspool()
-      }
-
       if(length(numericPoolWeights())==0){
-        LPweights=rep(1,length(x))
+        LPweights=rep(1,length(labmeanspool()[sanitize]))
       }else{
         LPweights=numericPoolWeights()
       }
-
-
-      DoEUnilateralLinearPool(x, u, nu, lab,weights=LPweights, K=input$linearOPrep,LOO=input$LOODoE,coverageProb=.95, linearOpRes = outpool())#LPcp())
+      DoEUnilateralLinearPool(x, u, nu, lab,weights=LPweights, K=input$linearOPrep,LOO=as.logical(input$LOODoE),coverageProb=.95, linearOpRes = outpool())#LPcp())
 
 
     })
@@ -1699,6 +1812,17 @@ shinyServer(function(input, output, session) {
 
 
     LPDoEUniPlot_func=function(){
+      
+      if(length(lablabspool())==0){
+        lab=paste("L", 1:length(labmeanspool()), sep="")
+      }else{
+        lab=lablabspool()
+      }
+      
+      #we remove the values of labs starting with "-"
+      sanitize = !startsWith( lab,"-")
+      nI = length(labmeanspool()[sanitize])
+      n= length(labmeanspool())
     par(fig=c(0,1,.6,1))  #change this when DoE plot added
     plot(c(1,1), c(1,1), type="n", axes=FALSE,xlab="", ylab="", bty="n")
     legend("top","DoE estimate and 95% coverage interval",#c(paste("DoE estimate and ",LPcp()*100,"% coverage interval",sep="")),
@@ -1706,24 +1830,21 @@ shinyServer(function(input, output, session) {
 
 
     par(fig=c(0,1,0,.8), new=TRUE)
+    plot(0,xlim=range(0.7,length(LPDoEUni()$DoE$DoE.x)+0.3),ylim=range(LPDoEUni()$DoE$DoE.Lwr,LPDoEUni()$DoE$DoE.Upr),type="n",     ylab="DoE",xlab="",xaxt="n", bty="n",axes=FALSE)
+    abline(h=0,col="gray")
+    
+    points(x=1:length(LPDoEUni()$DoE$DoE.x),y=LPDoEUni()$DoE$DoE.x,pch=c(rep(19,nI),rep(21,n-nI)))
+    
+    
+    lab=LPDoEUni()$DoE$Lab
 
-    plot(LPDoEUni()$DoE$DoE.x,pch=19,ylim=range(LPDoEUni()$DoE$DoE.Lwr,LPDoEUni()$DoE$DoE.Upr),
-         ylab="DoE",xlab="",xaxt="n", bty="n",axes=FALSE)
-
-
-
-    if(length(lablabspool())==0){
-      lab=LPDoEUni()$DoE$Lab
-    }else{
-      lab=lablabspool()
-    }
     n = length(labmeanspool())
     mtext(lab[seq(1, n, 2)], side=1, at=seq(1, n, 2), line=0, cex=1, col="Black")
     mtext(lab[seq(2, n, 2)], side=1, at=seq(2, n, 2), line=1.2, cex=1, col="Black")
 
 
     axis(2)
-    abline(h=0,col="gray")
+   
 
     for(i in 1:length(LPDoEUni()$DoE$DoE.x)){
       arrows(i,LPDoEUni()$DoE$DoE.Lwr[i],i,LPDoEUni()$DoE$DoE.Upr[i],length=0)
@@ -1765,6 +1886,24 @@ shinyServer(function(input, output, session) {
 
     )
 
+    if(length(lablabspool())==0){
+      lab=paste("L", 1:length(labmeanspool()), sep="")
+    }else{
+      lab=lablabspool()
+    }
+    
+    #we remove the values of labs starting with "-"
+    sanitize = !startsWith( lab,"-")
+    nI = length(labmeanspool()[sanitize])
+    
+    ###Check number of included labs 
+    
+    LOObool= as.logical(input$LOODoE)
+    
+    validate(
+      need((nI>=3&&LOObool)||!LOObool, 'At least three labs are required to be included in the consensus for this method.'),
+      need((nI>=2&&!LOObool)||LOObool, 'At least two labs are required to be included in the consensus for this method.')
+    )
 
     withProgress(message = 'Calculating Bilateral DoEs', value = 0, style="old",{
 
@@ -1777,21 +1916,13 @@ shinyServer(function(input, output, session) {
         nu=NULL
       }
 
-
-      if(length(lablabspool())==0){
-        lab=NULL
-      }else{
-        lab=lablabspool()
-      }
-
       if(length(numericPoolWeights())==0){
-        LPweights=rep(1,length(x))
+        LPweights=rep(1,length(labmeanspool()[sanitize]))
       }else{
         LPweights=numericPoolWeights()
       }
 
-
-      DoEBilateralPool(x, u, nu, lab,weights=LPweights, K=input$linearOPrep,coverageProb=.95)#LPcp())
+      DoEBilateralPool(x, u, nu, lab,weights=LPweights, K=input$linearOPrep,coverageProb=.95)
     })
 
   })
@@ -1822,7 +1953,6 @@ shinyServer(function(input, output, session) {
     n = dim(DoE.Bilateral.LP.x)[[1]]
 
     labNAMEs = dimnames(DoE.Bilateral.LP.x)[[1]]
-
 
     xx = (DoE.Bilateral.LP.Lwr * DoE.Bilateral.LP.Upr > 0)
     ij = which(xx, arr.ind=TRUE, useNames = TRUE)

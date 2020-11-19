@@ -31,7 +31,7 @@
 
 ######################################################################
 
-DoEBilateralDL = function (x, u, nu, lab, K,
+DoEBilateralDL = function (x, u, nu, K,
                            # LOO,
                            coverageProb,DoEUnilateral)
 {

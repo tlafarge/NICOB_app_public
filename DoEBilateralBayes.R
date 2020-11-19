@@ -31,14 +31,18 @@
 
 ######################################################################
 
-DoEBilateralBayes = function (x, u, nu, lab, #LOO,
+DoEBilateralBayes = function (x, u, nu, 
                               DoEUnilateral,coverageProb)
 {
   n = length(x)
+  
+  lab = as.character(DoEUnilateral$DoE$Lab)
+  
   if (is.null(lab)) {lab=paste("L", 1:n, sep="")}
   sanitize = !startsWith( lab,"-")
 
-  #Number of labs taken into account for the consensus
+  ### I'm not sure the code below is needed, but might be for uniform error messages
+  #Number of labs taken into account for the consensus 
   nI = sum(sanitize)
   if (nI<= 2) {
     testWarn="WARNING: Not enough labs were including in the consensus for DoE to be available with this method<br/>"

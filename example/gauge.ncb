@@ -1,4 +1,4 @@
-NICOB version=1.2
+NICOB version=1.3
 lablabels=OFMET, NPL, LNE, NRC, NIST, CENAM, CSIRO, NRLM, KRISS
 mean=15.0, 15.0, 30.0, 18.0, 24.0, -9.0, 33.0, 12.5, 8.8
 se=9.0, 14.0, 10.0, 13.0, 9.0, 7.0, 9.0, 8.6, 10.0

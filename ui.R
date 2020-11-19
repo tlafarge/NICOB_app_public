@@ -1,7 +1,7 @@
 ######################################################################
 ######################################################################
 ####################### NIST Consensus Builder #######################
-############################ Version 1.2 #############################
+############################ Version 1.3 #############################
 ######################################################################
 ######################################################################
 
@@ -35,7 +35,7 @@ shinyUI(fluidPage(id = "fullpage",theme = "style.css",
                     </div>
                     <div class='nist-header__title'>
                       <h4 class='title' >Consensus Builder</h4>
-                      <h5 class='title' >Version 1.2</h5>
+                      <h5 class='title' >Version 1.3</h5>
                     </div>
                   </div>")),
 
@@ -456,7 +456,8 @@ purpose that the results of the data reduction are intended to serve."),
                textInput("poolweights",
                          label = h4("Weights") #,"1,1,1,1,1,1"
                          ),
-               helpText("If no weights are entered, default weights will all be equal to 1"),
+               helpText("If no weights are entered, default weights will all be equal to 1."),
+               helpText("Only include weights for labs included in the consensus value calculation."),
                numericInput("linearOPrep", label = h4("Sample size"), value = 1e5,step=1000,min=0),
 
                actionButton("dopool", "Fit the model"),
