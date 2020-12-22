@@ -35,7 +35,7 @@ shinyServer(function(input, output, session) {
       tempvalue = median(se[sanitize])
     }else
     {
-      tempvalue=median(x)
+      tempvalue=median(se)
     }
     numericInput("halfCauchyScaleSigma",
                  label = h4("Scale for half-Cauchy prior on within laboratory variances"),

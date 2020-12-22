@@ -36,48 +36,48 @@
 
 DoEUnilateralBayes = function (x.All, u.All, nu.All, lab.All, LOO, mcmc,
                                ni, nb, nt,coverageProb,
-                               UItauPriorScale, UIsigmaPriorScale) 
+                               UItauPriorScale, UIsigmaPriorScale)
 {
-  source("bayesGelman.R") 
+  source("bayesGelman.R")
 
   n.All = length(x.All)
 
   ## check convergence of LOO runs
   bayesRunsConv=c()
 
-  consensusValueName="mu" 
-  StudyEffectName="xi" 
+  consensusValueName="mu"
+  StudyEffectName="xi"
 
   if (is.null(lab.All)) {lab.All=paste("L", 1:n.All, sep="")}
 
   # Check if any lab was exempt from prior Mcmc computation
   sanitize = !startsWith( lab.All,"-")
 
-  ## Analysis for included labs 
+  ## Analysis for included labs
   x=x.All[sanitize]
   u=u.All[sanitize]
   nu=nu.All[sanitize]
   lab=lab.All[sanitize]
-  
+
   #Number of labs taken into account for the consensus ## AP CHECK: What should min number of labs be?
   nI = sum(sanitize)
   if (nI != n.All && nI <= 2){
     testWarn="WARNING: Not enough labs were including in the consensus for DoE with LOO to be meaningful<br/>"
   }
-  
+
 
   if (LOO) {
     nc = length(mcmc)
     ## DoEs based on leave-one-out estimates
     cat("## DoEUnilateralBayes (Leave-One-Out Version) ---\n")
 
-    ### ### DO WE STILL NEED THIS HERE??? ### ### 
-    # ##Add Warning if LOO is one with only one lab used for the consensusV 
+    ### ### DO WE STILL NEED THIS HERE??? ### ###
+    # ##Add Warning if LOO is one with only one lab used for the consensusV
     # if (nI != n && nI<= 1){
     #   testWarnLab="WARNING: Not enough labs were including in the consensus for DoE with LOO to be meaningful<br/>"
     # }
     ### ### ### ###
-    
+
     # ##### Code below is from Antonio's 2016-Nov-02 modification of the DoE code
     # ##### I don't use sigmaMCMC in the LOO version of the DoE, per "Questions and Answers" emails (August 2016).
     # ## We begin by populating sigmaMCMC that will be used
@@ -97,7 +97,7 @@ DoEUnilateralBayes = function (x.All, u.All, nu.All, lab.All, LOO, mcmc,
     #   ## been estimated and there are samples from
     #   ## their posterior distributions
     #   sigmaMCMC = NULL
-    #   sigmaNAMEs = paste("sigma[", 1:n,"]", sep="") 
+    #   sigmaNAMEs = paste("sigma[", 1:n,"]", sep="")
     #
     #   for (jc in 1:nc)
     #   {
@@ -114,15 +114,15 @@ DoEUnilateralBayes = function (x.All, u.All, nu.All, lab.All, LOO, mcmc,
     for (j in 1:nI)
     {
       cat(j, "of", nI, "\n")
-      zj = bayesGelman(x=x[-j], u=u[-j], nu=nu[-j], 
+      zj = bayesGelman(x=x[-j], u=u[-j], nu=nu[-j],
                        tauPriorScale=UItauPriorScale,
                        sigmaPriorScale=UIsigmaPriorScale,
                        nc=1,
                        ni=ni, nb=nb, nt=nt)
       bayesRunsConv=c(bayesRunsConv,(zj$warn!=""))
 
-      BG[[j]] = rbind(zj$mcmc[[1]][, c(consensusValueName, "tau")]) 
-                      
+      BG[[j]] = rbind(zj$mcmc[[1]][, c(consensusValueName, "tau")])
+
     }
 
     K = nrow(BG[[1]])
@@ -130,7 +130,7 @@ DoEUnilateralBayes = function (x.All, u.All, nu.All, lab.All, LOO, mcmc,
     DoE.x = DoE.U = DoE.Lwr = DoE.Upr = numeric(nI)
     for (j in 1:nI)
     {
-      muMCMC = BG[[j]][,consensusValueName] 
+      muMCMC = BG[[j]][,consensusValueName]
       tauMCMC = BG[[j]][,"tau"]
 
       ######## Used below to generate ej, different from 2016-Nov-02 update
@@ -160,7 +160,7 @@ DoEUnilateralBayes = function (x.All, u.All, nu.All, lab.All, LOO, mcmc,
       DoE.x[j] = x[j] - mean(muMCMC)
       D[,j] = x[j] - muMCMC + ej
       DoE.U[j] =
-        symmetricalBootstrapCI(D[,j], mean(D[,j]), coverageProb) 
+        symmetricalBootstrapCI(D[,j], mean(D[,j]), coverageProb)
       DoE.Lwr[j] = quantile(D[,j], probs=(1-coverageProb)/2)
       DoE.Upr[j] = quantile(D[,j], probs=(1+coverageProb)/2)
     }
@@ -176,26 +176,30 @@ DoEUnilateralBayes = function (x.All, u.All, nu.All, lab.All, LOO, mcmc,
       ## of u were based on infinitely many degrees of
       ## freedom, and the sigma will not have been estimated
       muMCMC = tauMCMC = NULL
+
       for (jc in 1:nc)
       {
-        muMCMC = c(muMCMC, mcmc[[jc]][,consensusValueName]) 
+        muMCMC = c(muMCMC, mcmc[[jc]][,consensusValueName])
         tauMCMC = c(tauMCMC, mcmc[[jc]][,"tau"])
       }
+      K = length(muMCMC)
 
       sigmaMCMC =  t(array(rep(u, K), dim=c(nI,K)))
+
+
       } else {
         ## When nu is not NULL, the sigma will have
         ## been estimated and there are samples from
         ## their posterior distributions
         muMCMC = thetaMCMC = tauMCMC = sigmaMCMC = NULL
 
-        thetaNAMEs = paste(StudyEffectName, "[", 1:nI,"]", sep="") 
-        sigmaNAMEs = paste("sigma[", 1:nI,"]", sep="") 
+        thetaNAMEs = paste(StudyEffectName, "[", 1:nI,"]", sep="")
+        sigmaNAMEs = paste("sigma[", 1:nI,"]", sep="")
 
 
         for (jc in 1:nc)
         {
-          muMCMC = c(muMCMC, mcmc[[jc]][,consensusValueName]) 
+          muMCMC = c(muMCMC, mcmc[[jc]][,consensusValueName])
           it = match(thetaNAMEs, dimnames(mcmc[[jc]])[[2]])
           thetaMCMC = rbind(thetaMCMC, mcmc[[jc]][,it])
           tauMCMC = c(tauMCMC, mcmc[[jc]][,"tau"])
@@ -217,15 +221,15 @@ DoEUnilateralBayes = function (x.All, u.All, nu.All, lab.All, LOO, mcmc,
     D = array(dim=c(K, nI))
     DoE.x = DoE.U = DoE.Lwr = DoE.Upr = numeric(nI)
 
-    ### Commented out Thomas' addition, added this from the old, commit on Apr 2, 2019 
+    ### Commented out Thomas' addition, added this from the old, commit on Apr 2, 2019
     ### Computing the DoE for the labs included in the consensus first
     for (j in 1:nI)
     {
-      D[,j] = x[j] - muMCMC +                        
+      D[,j] = x[j] - muMCMC +
         rnorm(K, mean=0, sd=sqrt(tauMCMC^2 + sigmaMCMC[,j]^2))
       DoE.x[j] = x[j] - muHAT
       DoE.U[j] =
-        symmetricalBootstrapCI(D[,j], mean(D[,j]), coverageProb) 
+        symmetricalBootstrapCI(D[,j], mean(D[,j]), coverageProb)
       DoE.Lwr[j] = quantile(D[,j], probs=(1-coverageProb)/2)
       DoE.Upr[j] = quantile(D[,j], probs=(1+coverageProb)/2)
     }
@@ -233,7 +237,7 @@ DoEUnilateralBayes = function (x.All, u.All, nu.All, lab.All, LOO, mcmc,
     #   #We compute the DoE for the lab included in the consensus first
     #   for (i in 1:nI)
     #   {
-    # 
+    #
     #     j = (1:n)[sanitize][i]
     #     D[,j] = x[j] - muMCMC +
     #       rnorm(K, mean=0, sd=sqrt(tauMCMC^2 + sigmaMCMC[,i]^2))
@@ -243,18 +247,18 @@ DoEUnilateralBayes = function (x.All, u.All, nu.All, lab.All, LOO, mcmc,
     #     DoE.Lwr[j] = quantile(D[,j], probs=(1-coverageProb)/2)
     #     DoE.Upr[j] = quantile(D[,j], probs=(1+coverageProb)/2)
     #   }
-    # 
+    #
     #   #We compute the DoE for the lab exclude from the consensus
     #   #We use a formula in case nu is specified that requires 3 or more labs to be included in the consensus
-    # 
+    #
     #   if(nI<n)
     #   {
     #     if (is.null(nu))
     #       nu=rep(Inf,n)
-    # 
+    #
     #     for (i in 1:(n-nI))
     #     {
-    # 
+    #
     #       j = (1:n)[!sanitize][i]
     #       nutau= nI-1
     #       nudj=( u[j]^2/(nu[j]+1) + tauMCMC^2/(nutau+1) )^2 / (  (u[j]^2/(nu[j]+1))^2/nu[j]  + (tauMCMC^2/(nutau+1))^2/nutau   )
@@ -264,17 +268,17 @@ DoEUnilateralBayes = function (x.All, u.All, nu.All, lab.All, LOO, mcmc,
     #         symmetricalBootstrapCI(D[,j], mean(D[,j]), coverageProb)
     #       DoE.Lwr[j] = quantile(D[,j], probs=(1-coverageProb)/2)
     #       DoE.Upr[j] = quantile(D[,j], probs=(1+coverageProb)/2)
-    # 
-    # 
+    #
+    #
     #     }
-    # 
+    #
     #   }
     # ### ### ### ###
     # ### ### ### ###
-    
+
     }
 
-  
+
   ### ### Need to add analysis for excluded labs here
   if(n.All>nI){
     x.excluded=x.All[!sanitize]
@@ -288,33 +292,33 @@ DoEUnilateralBayes = function (x.All, u.All, nu.All, lab.All, LOO, mcmc,
     for(j in 1:(n.All-nI)){
 
       D.excluded[,j]=x.excluded[j] - muMCMC + rnorm(K, mean=0, sd=sqrt(u.excluded[j]^2 + tauMCMC^2))
-      DoE.U.excluded[j]=symmetricalBootstrapCI(D.excluded[,j], 
-                                               estimate=mean(D.excluded[,j]), 
+      DoE.U.excluded[j]=symmetricalBootstrapCI(D.excluded[,j],
+                                               estimate=mean(D.excluded[,j]),
                                                coverage=coverageProb)
-      
-    }  
+
+    }
     dimnames(D.excluded)[[2]] = as.list(lab.excluded)
 
     DoE.x.excluded = x.excluded-mean(muMCMC)
     names(DoE.x.excluded) = lab.excluded
-    
+
     DoE.x=c(DoE.x,DoE.x.excluded)
     DoE.U=c(DoE.U,DoE.U.excluded)
     DoE.Lwr=c(DoE.Lwr,DoE.x.excluded-DoE.U.excluded) ### AP CHECK
     DoE.Upr=c(DoE.Upr,DoE.x.excluded+DoE.U.excluded)
-    
+
     lab.outlabel=c(lab,lab.excluded)
-    
+
     # DC.excluded = sweep(D.excluded, 2, apply(D.excluded, 2, mean))
-    # D.excluded = sweep(DC.excluded, 2, -DoE.x.excluded)	 
-    
+    # D.excluded = sweep(DC.excluded, 2, -DoE.x.excluded)
+
     D=cbind(D,D.excluded)
   }else{
     lab.outlabel=lab.All
   }
-  
-  
-  ### Add results for excluded labs 
+
+
+  ### Add results for excluded labs
   results = data.frame(Lab=lab.outlabel, DoE.x=DoE.x, DoE.U95=DoE.U,
                        DoE.Lwr=DoE.Lwr, DoE.Upr=DoE.Upr)
 
