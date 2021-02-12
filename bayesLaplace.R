@@ -10,7 +10,7 @@
 
 ##   x   = Numeric vector with n values measured by the labs
 ##   u   = Numeric vector with n standard uncertainties associated with
-##         measured values 
+##         measured values
 ##   nu  = Numeric vector with n (positive or possibly +Inf) numbers of
 ##         degrees of freedom that the elements of u are based on; if
 ##         NULL, then the elements of u are assumed to be based on
@@ -18,7 +18,7 @@
 ##   lab = Character vector with n laboratory labels
 ##   tauPriorScale
 ##       = Scale of the half-Cauchy prior distribution for the
-##         between-lab standard deviation ("dark uncertainty") tau 
+##         between-lab standard deviation ("dark uncertainty") tau
 ##   sigmaPriorScale
 ##       = Scale of the half-Cauchy prior distributions for the true
 ##         values of the within-lab standard uncertainties sigma
@@ -32,7 +32,7 @@
 ##         NULL means no parallelization)
 ##   printResults
 ##       = Whether to print summary statistics at the end of the
-##         execution (Default TRUE) 
+##         execution (Default TRUE)
 ##   progress.bar = Default "text" ("none" to suppress)
 ##   tempDir      = Full path to directory for temporary JAGS code
 
@@ -73,7 +73,7 @@
 bayesLaplace = function (x, u, nu=NULL,
     tauPriorScale, sigmaPriorScale,
     ni, nb, nt, nc=1,
-    nCores=NULL, progress.bar="text")
+    nCores=NULL)
 {
     require(R2jags)
     n = length(x)
@@ -104,7 +104,7 @@ bayesLaplace = function (x, u, nu=NULL,
        ## Inits function
        LabComp.inits = function() {
            list(mu = rnorm(1, mean=median(x), sd=mad(x)),
-                tau = mad(x), 
+                tau = mad(x),
                 xi = rnorm(n, mean=median(x), sd=u) ) }
 
        ## Parameters to estimate
@@ -135,7 +135,7 @@ bayesLaplace = function (x, u, nu=NULL,
         ## Inits function
         LabComp.inits = function() {
             list(mu = rnorm(1, mean=median(x), sd=mad(x)),
-                 tau = mad(x), 
+                 tau = mad(x),
                  xi = rnorm(n, mean=median(x), sd=u),
                  sigma = u) }
 
@@ -144,23 +144,24 @@ bayesLaplace = function (x, u, nu=NULL,
     }
 
     ## Start Gibbs sampling
-    LabComp.output =
+
+    withProgress(message = 'Running Bayes', style="old",value = 0, {
+      LabComp.output =
         if (is.null(nCores)) {
-            jags(LabComp.Data, progress.bar=progress.bar,
-                 inits=LabComp.inits, parameters.to.save=LabComp.params,
+            jags(LabComp.Data, inits=LabComp.inits, parameters.to.save=LabComp.params,
                  model.file="LabComp-Model.txt", n.thin=nt, n.chains=nc,
                  n.burnin=nb, n.iter=ni)
-        } else { #leaving this in as a potential future direction, NICOB currently does not allow for this. 
+        } else { #leaving this in as a potential future direction, NICOB currently does not allow for this.
             jags.parallel(LabComp.Data, inits=LabComp.inits,
                           parameters.to.save=LabComp.params,
                           model.file="LabComp-Model.txt",
                           nCores=min(c(nCores, nc)),
                           n.thin=nt, n.chains=nc,
                           n.burnin=nb, n.iter=ni) }
-
+    })
     bayesres = as.mcmc(LabComp.output)
     geweke = geweke.diag(bayesres)
-    zScores = geweke[[1]][[1]][-1] # confirm that this index is correct 
+    zScores = geweke[[1]][[1]][-1] # confirm that this index is correct
     # for (jc in 2:nc) {zScores = c(zScores, geweke[[jc]][[1]][-1])} #changed nc to 1
     geweke.pvalues = p.adjust(2*pnorm(-abs(zScores)), method="BH")
     if (min(geweke.pvalues) < 0.05) {
@@ -168,13 +169,13 @@ bayesLaplace = function (x, u, nu=NULL,
         cat("WARNING: Results are unreliable\n")
         cat(paste("SUGGESTION: Re-run with ",
                   "ni = ", 10*ni, ", nb = ", 2*ni,
-                  ", and nt = ", ceiling(0.001*ni), "\n", sep="")) 
-        
+                  ", and nt = ", ceiling(0.001*ni), "\n", sep=""))
+
         testWarn=paste("WARNING: MCMC may not have reached equilibrium<br/>",
                        "WARNING: Results are unreliable<br/>",
                        paste("SUGGESTION: Re-run with ",
                              "'Total number of iterations' = ", 10*ni, ", 'Length of burn in' = ", 2*nb,
-                             ", and 'Thinning rate' = ", ceiling(0.001*ni), "<br/>", sep=""),sep=" ") 
+                             ", and 'Thinning rate' = ", ceiling(0.001*ni), "<br/>", sep=""),sep=" ")
     }else{
       testWarn=""
     }
@@ -183,4 +184,3 @@ bayesLaplace = function (x, u, nu=NULL,
 
     return(list(mcmcout=bayesres,warn=testWarn))
 }
-

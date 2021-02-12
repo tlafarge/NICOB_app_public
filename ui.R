@@ -1,7 +1,7 @@
 ######################################################################
 ######################################################################
 ####################### NIST Consensus Builder #######################
-############################ Version 1.3 #############################
+############################ Version 1.4 #############################
 ######################################################################
 ######################################################################
 
@@ -35,7 +35,7 @@ shinyUI(fluidPage(id = "fullpage",theme = "style.css",
                     </div>
                     <div class='nist-header__title'>
                       <h4 class='title' >Consensus Builder</h4>
-                      <h5 class='title' >Version 1.3</h5>
+                      <h5 class='title' >Version 1.4</h5>
                     </div>
                   </div>")),
 
@@ -350,7 +350,7 @@ purpose that the results of the data reduction are intended to serve."),
 
              ###############Bayesian
              tabPanel(
-               title=h4("Hierarchical Bayes"),
+               title=h4("Hierarchical Bayes (Gaussian)"),
 
                h4("Fit using Bayesian method with weakly informative priors"),
                uiOutput("dyn_input1"),
@@ -373,7 +373,7 @@ purpose that the results of the data reduction are intended to serve."),
                  condition = "input.dobayes >= 1",
 
 
-                 h2("Bayesian procedure"),
+                 h2("Bayesian procedure "),
                  h4(div("Assuming weakly informative prior distributions and allowing for uncertainty in standard uncertainties"), style = "color:gray"),
                  h5(htmlOutput("bayesConv")),
                  tags$head(tags$style("#bayesConv{color: red;
@@ -394,11 +394,12 @@ purpose that the results of the data reduction are intended to serve."),
                  p("The ",textOutput("coverageProbabilityPercentBayes",inline=T)," credible interval ranges from: ",textOutput("bayesquant",inline=T)),
                  p("The dark uncertainty (tau) is: ",textOutput("bayestau",inline=T)),
                  plotOutput("bayesplot", width = "auto", height = "700px"),
-
-                 br(),
-
-                 br(),
-                 br(),
+                 p(textOutput("bayesplotLegendWarning",inline=T)),
+                 
+                 # br(),
+                 # 
+                 # br(),
+                 # br(),
 
                  br(),
                  br(),
@@ -406,7 +407,7 @@ purpose that the results of the data reduction are intended to serve."),
                  downloadButton('downloadBayesGraph', 'Download plot'),
                  br()
 
-                 ),
+               ),
 
 
 
@@ -441,6 +442,100 @@ purpose that the results of the data reduction are intended to serve."),
                  fluidRow(
 
                    splitLayout(cellWidths = c("50%", "50%"),tableOutput("BayesDoEBiTable"),tableOutput("BayesDoE.UBiTable"))
+
+                 )
+               )
+
+             ),
+             ###############Bayesian Laplace
+             tabPanel(
+               title=h4("Hierarchical Bayes (Laplace)"),
+
+               h4("Fit using Bayesian method with weakly informative priors"),
+               uiOutput("dyn_input1_lap"),
+               helpText("Default is the median of the absolute values of the differences between the measured values and their median"),
+               uiOutput("dyn_input2_lap"),
+               helpText("Default is the median of the lab-specific standard uncertainties"),
+
+               numericInput("niters_lap", label = h4("Total number of iterations"), value = "250000",step=1000,min=0),
+               numericInput("nburnin_lap", label = h4("Length of burn in"), value = "50000",step=1000,min=0),
+               numericInput("nthin_lap", label = h4("Thinning rate"), value = "25",min=0),
+
+
+               actionButton("dobayes_lap", "Fit the model"),
+               br(),
+               br(),
+
+
+
+               conditionalPanel(
+                 condition = "input.dobayes_lap >= 1",
+
+
+                 h2("Bayesian procedure"),
+                 h4(div("Assuming weakly informative prior distributions and allowing for uncertainty in standard uncertainties"), style = "color:gray"),
+                 h5(htmlOutput("bayesConv_lap")),
+                 tags$head(tags$style("#bayesConv_lap{color: red;
+                                       font-style: italic;
+                                      }")),
+
+                 h5(htmlOutput("bayesTauWarn_lap")),
+                 tags$head(tags$style("#bayesTauWarn_lap{color: blue;
+                                      font-style: italic;
+                                      }")),
+                 h5(htmlOutput("bayesSigWarn_lap")),
+                 tags$head(tags$style("#bayesSigWarn_lap{color: blue;
+                                      font-style: italic;
+                                      }")),
+
+                 p("The consensus estimate is: ",textOutput("bayesest_lap",inline=T)),
+                 p("The standard uncertainty is: ",textOutput("bayesse_lap",inline=T)),
+                 p("The ",textOutput("coverageProbabilityPercentBayes_lap",inline=T)," credible interval ranges from: ",textOutput("bayesquant_lap",inline=T)),
+                 p("The dark uncertainty (tau) is: ",textOutput("bayestau_lap",inline=T)),
+                 plotOutput("bayesplot_lap", width = "auto", height = "700px"),
+                 p(textOutput("bayesplotLegendWarning_lap",inline=T)),
+
+                 br(),
+                 br(),
+                 downloadButton('downloadbayesout_lap', 'Download MCMC output'),
+                 downloadButton('downloadBayesGraph_lap', 'Download plot'),
+                 br()
+
+               ),
+
+
+
+
+               conditionalPanel(
+                 condition = "input.DoE == true && input.dobayes_lap >= 1",
+                 h2("Unilateral degrees of equivalence"),
+                 h5(htmlOutput("bayesDoEConv_lap")),
+                 tags$head(tags$style("#bayesDoEConv_lap{color: red;
+                                      font-style: italic;
+                                      }")),
+
+                 plotOutput("BayesDoEUniPlot_lap", width = "auto", height = "500px"),
+                 downloadButton('downloadBayesUniDoEGraph_lap', 'Download unilateral DoE plot'),
+                 br(),
+                 br(),
+                 tableOutput("BayesDoEUniTable_lap"),
+
+                 h2("Bilateral degrees of equivalence"),
+                 helpText(
+                   "Yellow squares (with black asterisks in the center) indicate results that differ significantly from 0
+                   at 95% coverage. Light blue squares indicate results that do not differ significantly at 95% coverage.
+                   Dark squares are space-fillers for results when compared to themselves."
+                 ),
+                 plotOutput("BayesDoEBiPlot_lap", width = "auto", height = "500px"),
+                 downloadButton('downloadBayesBiDoEGraph_lap', 'Download bilateral DoE plot'),
+
+                 br(),
+                 br(),
+
+
+                 fluidRow(
+
+                   splitLayout(cellWidths = c("50%", "50%"),tableOutput("BayesDoEBiTable_lap"),tableOutput("BayesDoE.UBiTable_lap"))
 
                  )
                )

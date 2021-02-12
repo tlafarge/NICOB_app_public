@@ -14,10 +14,13 @@
 * R packages shiny, metafor and R2jags
 
 ## Changelog
+### version 1.4
+  - Added Bayes Laplace
+
 ### version 1.3
- - Improve exclude lab feature
- - Improve DoE graph
- - Update manual
+  - Improve exclude lab feature
+  - Improve DoE graph
+  - Update manual
 
 ### version 1.2
  - Added the possibility to remove labs from the consensus computation but not the degrees of equivalences by adding a "-" in front of their label

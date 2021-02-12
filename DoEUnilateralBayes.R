@@ -182,8 +182,8 @@ DoEUnilateralBayes = function (x.All, u.All, nu.All, lab.All, LOO, mcmc,
         muMCMC = c(muMCMC, mcmc[[jc]][,consensusValueName])
         tauMCMC = c(tauMCMC, mcmc[[jc]][,"tau"])
       }
+      
       K = length(muMCMC)
-
       sigmaMCMC =  t(array(rep(u, K), dim=c(nI,K)))
 
 
