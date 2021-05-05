@@ -1633,8 +1633,8 @@ shinyServer(function(input, output, session) {
   })
 
 
-  output$downloadbayesout <- downloadHandler(
-    filename = "MCMCout.csv",
+  output$downloadbayesout_lap <- downloadHandler(
+    filename = "MCMCout_Laplace.csv",
     content = function(file) {
       write.table(outbayes_lap()[["mcmcout"]][[1]], file,row.names = F)
     }
