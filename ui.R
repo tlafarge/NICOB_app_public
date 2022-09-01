@@ -5,7 +5,7 @@
 ######################################################################
 ######################################################################
 
-shinyUI(fluidPage(id = "fullpage",
+shinyUI(fixedPage(id = "fullpage",
 
 
     tags$head(
@@ -32,7 +32,7 @@ shinyUI(fluidPage(id = "fullpage",
     tags$head(tags$link(rel="shortcut icon", href="./favicon.ico")),
     tags$head(HTML("<title>NIST Consensus Builder</title>")),
     
-    # NIST Header
+    #NIST Header
     HTML('
       <link rel="stylesheet" href="css/nist-combined.css">
       <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
@@ -41,10 +41,10 @@ shinyUI(fluidPage(id = "fullpage",
     '),
 
 
-  fluidRow(br(),column(6,h1("NIST Consensus Builder"),offset=1)),
-  fluidRow(),
+  fluidRow(br(),column(6,h1("NIST Consensus Builder"),offset=0)),
+  #fluidRow(),
   fluidRow(id = "content",
-    column(11,offset=1,
+    column(12,offset=0,
            br(),
            navlistPanel(selected=h4("Enter data"),
 
@@ -220,7 +220,7 @@ purpose that the results of the data reduction are intended to serve."),
                numericInput("seed",
                             label = h4("Random number generator seed"),value = 5,step=1, min = 1, max = 100
                ),
-              HTML("<span style='font-size: 85%;'>* Required field</span>"),
+              #HTML("<span style='font-size: 85%;'>* Required field</span>"),
 
                # ######## DoE
                br(),
